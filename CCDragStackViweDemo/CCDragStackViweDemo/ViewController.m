@@ -12,7 +12,7 @@
 
 // TODO ：目前只有当once > show 才会触发预加载
 static int const kCountOnce = 5;
-static int const kCountShow = 4;
+static int const kCountShow = 3;
 
 #define RANDOM_COLOR [UIColor colorWithRed:arc4random_uniform(256)/255.0 \
                                     green:arc4random_uniform(256)/255.0 \
@@ -106,7 +106,7 @@ static int const kCountShow = 4;
 }
 
 // CDSDataSourcePrefetching
-- (void)dragStackViewPrefetchData:(CCDragStackView *)dragStackView
+- (void)dragStackViewPrefetchData:(CCDragStackView *)dragStackView hasSeenCount:(int)seenCount
 {
     BOOL success = YES;
     if (success) {
@@ -117,8 +117,7 @@ static int const kCountShow = 4;
         }
         flag ++;
         NSArray *oriArr = [self.dataArray copy];
-        int seen = dragStackView.hasSeenCnt;
-        NSRange range = NSMakeRange(seen, self.dataArray.count - seen);
+        NSRange range = NSMakeRange(seenCount, self.dataArray.count - seenCount);
         self.dataArray = [[self.dataArray subarrayWithRange:range] mutableCopy];
         [self.dataArray addObjectsFromArray:ret];
         NSLog(@"预加载成功 dataSource from %@ to %@", oriArr, self.dataArray);
@@ -126,8 +125,7 @@ static int const kCountShow = 4;
     } else {
         // 获取失败的情况
         NSLog(@"预加载失败");
-        int seen = dragStackView.hasSeenCnt;
-        NSRange range = NSMakeRange(seen, self.dataArray.count - seen);
+        NSRange range = NSMakeRange(seenCount, self.dataArray.count - seenCount);
         self.dataArray = [[self.dataArray subarrayWithRange:range] mutableCopy];
         [self.dragStackView reloadData];
     }

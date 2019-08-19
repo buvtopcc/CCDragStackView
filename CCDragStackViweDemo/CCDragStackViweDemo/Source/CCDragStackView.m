@@ -42,6 +42,8 @@ static const CGFloat kRotationAngle = M_PI / 8;
 // 是否正在动画中
 @property (nonatomic, assign) BOOL isAnimating;
 
+@property (nonatomic, assign) int hasSeenCnt;
+
 @end
 
 @implementation CCDragStackView
@@ -114,6 +116,15 @@ static const CGFloat kRotationAngle = M_PI / 8;
     return _itemArray;
 }
 
+- (void)setshowingCnt:(int)showingCnt
+{
+    NSInteger itemNum = showingCnt;
+    if ([self.dataSource respondsToSelector:@selector(dragStackViewNumberOfItems:)]) {
+        itemNum = [self.dataSource dragStackViewNumberOfItems:self];
+    }
+    _showingCnt = (itemNum >= showingCnt) ? showingCnt:(int)itemNum;
+}
+
 #pragma mark - 对外接口
 - (void)registerClass:(Class)cellClass forCellReuseIdentifier:(NSString *)identifier
 {
@@ -179,17 +190,25 @@ static const CGFloat kRotationAngle = M_PI / 8;
 
 - (void)dismissFromRight
 {
+    if (self.isAnimating) {
+        NSLog(@"dismissFromRight isAnimating, return.");
+        return;
+    }
     UIView *topView = [self.itemArray firstObject];
     if (topView) {
-        [self viewDismissFromRight:topView];
+        [self dismissAtDirect:CCDragStackViewDirectRight view:topView];
     }
 }
 
 - (void)dismissFromLeft
 {
+    if (self.isAnimating) {
+        NSLog(@"dismissFromLeft isAnimating, return.");
+        return;
+    }
     UIView *topView = [self.itemArray firstObject];
     if (topView) {
-        [self viewDismissFromLeft:topView];
+        [self dismissAtDirect:CCDragStackViewDirectLeft view:topView];
     }
 }
 
@@ -246,9 +265,9 @@ static const CGFloat kRotationAngle = M_PI / 8;
 {
     //当这个差值大于kActionMargin 让它从右边消失
     if (self.xFromCenter > kActionMargin) {
-        [self viewDismissFromRight:view];
+        [self dismissAtDirect:CCDragStackViewDirectRight view:view];
     } else if (self.xFromCenter < -kActionMargin) { //当这个差值小雨-kActionMargin 让它从左边消失
-        [self viewDismissFromLeft:view];
+        [self dismissAtDirect:CCDragStackViewDirectLeft view:view];
     } else { //其他情况恢复原来的位置
         self.isAnimating = YES;
         [UIView animateWithDuration:kAnimateTime
@@ -260,36 +279,17 @@ static const CGFloat kRotationAngle = M_PI / 8;
     }
 }
 
-- (void)viewDismissFromRight:(UIView *)view
+- (void)dismissAtDirect:(CCDragStackViewDirect)direct view:(UIView *)view
 {
-    if (self.isAnimating) {
-        NSLog(@"isAnimating, viewDismissFromRight return.");
-        return;
-    }
+    int sign = (direct == CCDragStackViewDirectLeft) ? -1: 1;
+    CGPoint finishPoint = CGPointMake(sign * 500, 2 * self.yFromCenter + self.originalPoint.y);
+    
+    // 动画
     self.isAnimating = YES;
-    CGPoint finishPoint = CGPointMake(500, 2 * self.yFromCenter + self.originalPoint.y);
-    //动画
     [UIView animateWithDuration:kAnimateTime animations:^{
         view.center = finishPoint;
     } completion:^(BOOL finished) {
-        [self viewSwipAction:view direct:CDSViewDirect_RemoveFromRight];
-        self.isAnimating = NO;
-    }];
-}
-- (void)viewDismissFromLeft:(UIView *)view
-{
-    if (self.isAnimating) {
-        NSLog(@"isAnimating, viewDismissFromLeft return.");
-        return;
-    }
-    self.isAnimating = YES;
-    CGPoint finishPoint = CGPointMake(-500, 2 * self.yFromCenter + self.originalPoint.y);
-    //动画
-    [UIView animateWithDuration:kAnimateTime animations:^{
-        view.center = finishPoint;
-    } completion:^(BOOL finished) {
-        [self viewSwipAction:view direct:CDSViewDirect_RemoveFromLeft];
-        self.isAnimating = NO;
+        [self viewSwipAction:view direct:direct];
     }];
 }
 
@@ -304,7 +304,7 @@ static const CGFloat kRotationAngle = M_PI / 8;
     [reuseArr addObject:view];
 }
 
-- (void)viewSwipAction:(UIView *)view direct:(CDSViewDirect)direct
+- (void)viewSwipAction:(UIView *)view direct:(CCDragStackViewDirect)direct
 {
     // 重制view属性
     view.transform = CGAffineTransformIdentity;
@@ -333,7 +333,8 @@ static const CGFloat kRotationAngle = M_PI / 8;
         [self.delegate dragStackView:self didRemoveItemAtIndex:deleteItemIndex direct:direct];
     }
     
-    BOOL showEmptyView = NO;
+    __weak typeof(self)weakSelf = self;
+    BOOL isShowEmpty = NO;
     if (newItemIndex < maxIndex) {
         if ([self.dataSource respondsToSelector:@selector(dragStackView:viewForItemAtIndex:)]) {
             newView = [self.dataSource dragStackView:self viewForItemAtIndex:newItemIndex];
@@ -342,25 +343,29 @@ static const CGFloat kRotationAngle = M_PI / 8;
             newView.userInteractionEnabled = NO;
             newView.frame = [self.itemArray.firstObject frame];
             [self.itemArray addObject:newView];
-            [self layoutViews:YES completion:nil];
+            [self layoutViews:YES completion:^{
+                weakSelf.isAnimating = NO;
+            }];
             NSLog(@"current has full aviable items at :%@", @(newItemIndex));
         }
     } else if (newItemIndex == maxIndex) {
-        __weak typeof(self)weakSelf = self;
         [self layoutViews:YES completion:^{
-            if ([weakSelf.prefetchDataSource respondsToSelector:@selector(dragStackViewPrefetchData:)]) {
-                [weakSelf.prefetchDataSource dragStackViewPrefetchData:weakSelf];
+            if ([weakSelf.prefetchDataSource respondsToSelector:@selector(dragStackViewPrefetchData:hasSeenCount:)]) {
+                [weakSelf.prefetchDataSource dragStackViewPrefetchData:weakSelf hasSeenCount:weakSelf.hasSeenCnt];
             }
+            weakSelf.isAnimating = NO;
         }];
     } else { // 已经没有数据可供显示了
-        [self layoutViews:YES completion:nil];
         self.showingCnt --;
+        [self layoutViews:YES completion:^{
+            weakSelf.isAnimating = NO;
+        }];
         if (self.hasSeenCnt == totalNumber) {
             NSLog(@"显示空白视图！！");
-            showEmptyView = YES;
+            isShowEmpty = YES;
         }
     }
-    self.emptyView.hidden = !showEmptyView;
+    self.emptyView.hidden = !isShowEmpty;
 }
 
 - (void)layoutViews:(BOOL)animate completion:(dispatch_block_t)completionBlock
@@ -373,16 +378,16 @@ static const CGFloat kRotationAngle = M_PI / 8;
     for (UIView *view in self.subviews) {
         [view removeFromSuperview];
     }
+    
     [self layoutIfNeeded]; // 得到tantanView自身的尺寸
     
-    CGFloat sW = self.frame.size.width;
-    CGFloat sH = self.frame.size.height;
-    __block CGFloat x = 0.5 * (sW - self.itemSize.width);
-    __block CGFloat y = 0.5 * (sH - self.itemSize.height);
-    __block CGFloat w = self.itemSize.width;
-    __block CGFloat h = self.itemSize.height;
-    
     void (^workBlock) (void) = ^{
+        CGFloat sW = self.frame.size.width;
+        CGFloat sH = self.frame.size.height;
+        CGFloat w = self.itemSize.width;
+        CGFloat h = self.itemSize.height;
+        CGFloat x = 0.5 * (sW - w);
+        CGFloat y = 0.5 * (sH - h);
         for (NSInteger i = 0; i < num; i++) {
             UIView *tantan = self.itemArray[i];
             tantan.frame = CGRectMake(x, y, w, h);
@@ -407,8 +412,10 @@ static const CGFloat kRotationAngle = M_PI / 8;
         }];
     } else {
         workBlock();
+        if (completionBlock) {
+            completionBlock();
+        }
     }
-    
     NSLog(@"layoutsubviews");
 }
 

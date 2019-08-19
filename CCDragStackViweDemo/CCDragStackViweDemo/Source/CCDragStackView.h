@@ -10,10 +10,10 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef NS_ENUM(NSUInteger, CDSViewDirect)
+typedef NS_ENUM(NSUInteger, CCDragStackViewDirect)
 {
-    CDSViewDirect_RemoveFromLeft = 1,
-    CDSViewDirect_RemoveFromRight = 2
+    CCDragStackViewDirectLeft = 1,
+    CCDragStackViewDirectRight = 2
 };
 
 @protocol CCDragStackViewDelegate, CCDragStackViewDataSource, CCDragStackViewDataSourcePrefetching;
@@ -24,8 +24,6 @@ typedef NS_ENUM(NSUInteger, CDSViewDirect)
 @property (nonatomic, weak) id <CCDragStackViewDataSource> dataSource;
 @property (nonatomic, weak) id <CCDragStackViewDataSourcePrefetching> prefetchDataSource;
 
-// 看过的数量，当前已经不出现在屏幕上
-@property (nonatomic, assign) int hasSeenCnt;
 // 当前正显示出来的数量
 @property (nonatomic, assign) int showingCnt;
 // 堆叠卡片之间的偏移量，默认{15，8}
@@ -49,7 +47,7 @@ typedef NS_ENUM(NSUInteger, CDSViewDirect)
 @protocol CCDragStackViewDelegate <NSObject>
 
 @optional
-- (void)dragStackView:(CCDragStackView *)dragstackView didRemoveItemAtIndex:(NSInteger)index direct:(CDSViewDirect)direct;
+- (void)dragStackView:(CCDragStackView *)dragstackView didRemoveItemAtIndex:(NSInteger)index direct:(CCDragStackViewDirect)direct;
 
 @end
 
@@ -62,8 +60,9 @@ typedef NS_ENUM(NSUInteger, CDSViewDirect)
 
 @protocol CCDragStackViewDataSourcePrefetching <NSObject>
 
-// 触发预加载（当前数据源最后一个数据显示到界面时触发）可以实现该方法来提前拉取数据
-- (void)dragStackViewPrefetchData:(CCDragStackView *)dragStackView;
+// 触发预加载（当前数据源最后一个数据显示到界面时触发）可以实现该方法来提前拉取数据 params:
+// seenCount: 看过的数量，当前已经不出现在屏幕上
+- (void)dragStackViewPrefetchData:(CCDragStackView *)dragStackView hasSeenCount:(int)seenCount;
 
 @end
 
