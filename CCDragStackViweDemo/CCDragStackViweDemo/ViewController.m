@@ -136,6 +136,15 @@ static int const kCountShow = 3;
     return self.dataArray.count;
 }
 
+- (BOOL)canDragDissmissView:(CCDragStackViewDirect)direct
+{
+    if (direct == CCDragStackViewDirectLeft) {
+        NSLog(@"当前不能左滑不喜欢");
+        return NO;
+    }
+    return YES;
+}
+
 - (UIView *)dragStackView:(CCDragStackView *)dragStackView viewForItemAtIndex:(NSInteger)index
 {
     DSCenterLabelCell *cell = [dragStackView dequeueReusableCellWithIdentifier:[DSCenterLabelCell identifier]];

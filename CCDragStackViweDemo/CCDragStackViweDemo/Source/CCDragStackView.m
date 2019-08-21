@@ -11,15 +11,15 @@
 static CGFloat kAnimateTime = 0.25;
 
 // 当前view左右移动消失的阈值
-static const CGFloat kActionMargin = 120;
+static const CGFloat kDIstanceOfTriggerDismiss = 120;
 //
-static const CGFloat kScaleStrength = 4;
-//
-static const CGFloat kScaleMax = 0.93;
-//
-static const CGFloat kRotationMax = 1.0;
-//
-static const CGFloat kRotationStrength = 320;
+static const CGFloat kScaleFactor = 4;
+// 可缩放到的最小值
+static const CGFloat kScaleMin = 0.93;
+// 旋转的最大弧度
+static const CGFloat kRadiusRotationMax = 1.0;
+// 触发到最大旋转弧度的距离值
+static const CGFloat kDistanceOfMaxRadius = 320;
 // 最大旋转角度
 static const CGFloat kRotationAngle = M_PI / 8;
 
@@ -236,11 +236,11 @@ static const CGFloat kRotationAngle = M_PI / 8;
             break;
         case UIGestureRecognizerStateChanged: {
             //取相对较小的值
-            CGFloat rotationStrength = MIN(self.xFromCenter / kRotationStrength, kRotationMax);
+            CGFloat rotationStrength = MIN(fabs(self.xFromCenter) / kDistanceOfMaxRadius, kRadiusRotationMax); // [0-1]
             //旋转角度
-            CGFloat rotationAngel = rotationStrength * kRotationAngle;
+            CGFloat rotationAngel = rotationStrength * kRotationAngle; // [0 - M_PI/8]
             //比例
-            CGFloat scale = MAX(1 - fabs(rotationStrength) / kScaleStrength, kScaleMax);
+            CGFloat scale = MAX(1 - fabs(rotationStrength) / kScaleFactor, kScaleMin); // [0.93 - 1]
             //重置中点
             firstCard.center = CGPointMake(self.originalPoint.x + self.xFromCenter,
                                            self.originalPoint.y + self.yFromCenter);
@@ -263,10 +263,20 @@ static const CGFloat kRotationAngle = M_PI / 8;
 
 - (void)endSwiped:(UIView *)view
 {
-    //当这个差值大于kActionMargin 让它从右边消失
-    if (self.xFromCenter > kActionMargin) {
+    // 默认支持滑动dismiss
+    BOOL canDismissLeft = YES;
+    BOOL canDismissRight = YES;
+    if ([self.dataSource respondsToSelector:@selector(canDragDissmissView:)]) {
+        canDismissLeft = [self.dataSource canDragDissmissView:CCDragStackViewDirectLeft];
+    }
+    if ([self.dataSource respondsToSelector:@selector(canDragDissmissView:)]) {
+        canDismissRight = [self.dataSource canDragDissmissView:CCDragStackViewDirectRight];
+    }
+    
+    //当这个差值大于kDIstanceOfTriggerDismiss 让它从右边消失
+    if (self.xFromCenter > kDIstanceOfTriggerDismiss && canDismissRight) {
         [self dismissAtDirect:CCDragStackViewDirectRight view:view];
-    } else if (self.xFromCenter < -kActionMargin) { //当这个差值小雨-kActionMargin 让它从左边消失
+    } else if (self.xFromCenter < -kDIstanceOfTriggerDismiss && canDismissLeft) { //当这个差值小雨-kDIstanceOfTriggerDismiss 让它从左边消失
         [self dismissAtDirect:CCDragStackViewDirectLeft view:view];
     } else { //其他情况恢复原来的位置
         self.isAnimating = YES;

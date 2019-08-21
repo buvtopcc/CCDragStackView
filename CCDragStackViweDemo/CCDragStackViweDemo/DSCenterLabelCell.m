@@ -28,6 +28,9 @@
     self = [super init];
     if (self) {
         [self setUp];
+        
+        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(onTap:)];
+        [self addGestureRecognizer:tap];
     }
     return self;
 }
@@ -77,6 +80,11 @@
 {
     self.titleLabel.text = text;
 //    [self setNeedsLayout];
+}
+
+- (void)onTap:(UITapGestureRecognizer *)tapGes
+{
+    NSLog(@"onTap, %@", self.titleLabel.text);
 }
 
 @end

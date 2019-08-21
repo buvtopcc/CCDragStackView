@@ -56,6 +56,10 @@ typedef NS_ENUM(NSUInteger, CCDragStackViewDirect)
 - (NSInteger)dragStackViewNumberOfItems:(CCDragStackView *)dragStackView;
 - (UIView *)dragStackView:(CCDragStackView *)dragStackView viewForItemAtIndex:(NSInteger)index;
 
+@optional
+// 是否可以滑动dimiss最上层视图
+- (BOOL)canDragDissmissView:(CCDragStackViewDirect)direct;
+
 @end
 
 @protocol CCDragStackViewDataSourcePrefetching <NSObject>
